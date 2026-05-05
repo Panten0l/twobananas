@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<title>TwoBananas — Pixel Edition</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    background: #0a0a14;
+    color: #fff;
+    font-family: 'Press Start 2P', 'Courier New', monospace;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+  body { font-family: 'Press Start 2P', monospace; }
+
+  .frame {
+    position: relative;
+    padding: 14px;
+    background: #1a1a2e;
+    border: 4px solid #ffd60a;
+    box-shadow:
+      0 0 0 4px #0a0a14,
+      0 0 0 8px #ff006e,
+      0 12px 40px rgba(255, 0, 110, 0.3);
+  }
+  .game-container {
+    position: relative;
+    width: 320px;
+    height: 480px;
+    background: #0f0f1e;
+    overflow: hidden;
+  }
+  canvas {
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    image-rendering: -moz-crisp-edges;
+    width: 100%;
+    height: 100%;
+  }
+  .hud {
+    position: absolute;
+    top: 8px; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 12px;
+    font-size: 10px;
+    color: #ffd60a;
+    text-shadow: 2px 2px 0 #000;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .modal {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 10, 20, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    padding: 24px 16px;
+    text-align: center;
+    z-index: 10;
+  }
+  .modal.hidden { display: none; }
+  .logo {
+    font-size: 18px;
+    color: #ffd60a;
+    text-shadow: 3px 3px 0 #ff006e, 5px 5px 0 #000;
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+  }
+  .sub {
+    font-size: 8px;
+    color: #ff006e;
+    margin-bottom: 18px;
+    letter-spacing: 2px;
+  }
+  .modal p {
+    font-size: 8px;
+    line-height: 1.8;
+    margin-bottom: 12px;
+    color: #ddd;
+  }
+  .modal .hint {
+    color: #888;
+    font-size: 7px;
+    margin: 14px 0;
+  }
+  .pixel-btn {
+    background: #ffd60a;
+    color: #1a1a2e;
+    border: none;
+    padding: 12px 22px;
+    font-family: inherit;
+    font-size: 10px;
+    cursor: pointer;
+    box-shadow: 4px 4px 0 #000, inset -2px -2px 0 #b89500, inset 2px 2px 0 #fff170;
+    margin-top: 8px;
+    letter-spacing: 1px;
+  }
+  .pixel-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 #000, inset -2px -2px 0 #b89500, inset 2px 2px 0 #fff170;
+  }
+  .pixel-btn.pink {
+    background: #ff006e;
+    color: #fff;
+    box-shadow: 4px 4px 0 #000, inset -2px -2px 0 #a3004a, inset 2px 2px 0 #ff5ba0;
+  }
+  .promo-code {
+    background: #2d2d44;
+    border: 2px dashed #ffd60a;
+    padding: 10px 14px;
+    font-size: 14px;
+    color: #ffd60a;
+    margin: 10px 0;
+    letter-spacing: 3px;
+    text-shadow: 2px 2px 0 #000;
+  }
+  .reward-text {
+    color: #ffd60a;
+    font-size: 8px;
+    margin-bottom: 4px;
+  }
+  .small {
+    font-size: 7px;
+    color: #aaa;
+  }
+  .ko-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .blink {
+    animation: blink 1s steps(2) infinite;
+  }
+  @keyframes blink {
+    50% { opacity: 0.3; }
+  }
+  .credits {
+    margin-top: 14px;
+    font-size: 9px;
+    color: #555;
+    text-align: center;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+<div style="display:flex;flex-direction:column;align-items:center;">
+<div class="frame">
+  <div class="game-container" id="gameContainer">
+    <canvas id="game" width="160" height="240"></canvas>
+
+    <div class="hud">
+      <div>SCORE <span id="score">0</span></div>
+      <div>BEST <span id="best">0</span></div>
+    </div>
+
+    <div class="modal" id="titleScreen">
+      <div class="logo">TwoBananas</div>
+      <div class="sub">PIXEL EDITION</div>
+      <p>Catch <span style="color:#ffd60a">★ stars</span><br>Dodge <span style="color:#ff4040">● bombs</span></p>
+      <div class="hint">
+        TAP LEFT — left banana<br>
+        TAP RIGHT — right banana<br>
+        or A D (left) · ← → (right)
+      </div>
+      <button class="pixel-btn" onclick="startGame()">PRESS START</button>
+      <p class="small" style="margin-top:18px;">100 PTS = -10%<br>250 PTS = -15% &nbsp; 500 PTS = -20%</p>
+    </div>
+
+    <div class="modal hidden" id="gameOverScreen">
+      <div class="logo" style="font-size:14px;color:#ff006e;">GAME OVER</div>
+      <p>SCORE: <span id="finalScore" style="color:#ffd60a">0</span></p>
+      <p class="small">BEST: <span id="finalBest">0</span></p>
+      <div id="rewardSection" style="display:none;margin-top:12px;">
+        <div class="reward-text" id="rewardText">10% OFF UNLOCKED</div>
+        <div class="promo-code blink" id="promoCode">BANANA10</div>
+        <div class="small">Use at checkout</div>
+      </div>
+      <div id="noRewardSection" class="small" style="margin-top:10px;color:#888;">
+        Reach 100 pts for a discount!
+      </div>
+      <div class="ko-row">
+        <button class="pixel-btn" onclick="startGame()">RETRY</button>
+        <button class="pixel-btn pink" onclick="showTitle()">MENU</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="credits">BANANA AGENCY · ARCADE</div>
+</div>
+
+<script>
+// ============================================================
+// TwoBananas — Pixel Edition
+// Game logic runs on a 160x240 internal canvas, scaled 2x via CSS
+// for crisp pixel-art rendering.
+// ============================================================
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+const W = canvas.width;   // 160
+const H = canvas.height;  // 240
+
+// 4 lanes total: 0,1 = left side; 2,3 = right side
+const LANE_X = [20, 60, 100, 140]; // center x per lane
+const PLAYER_Y = H - 32;
+
+// ---------- Sprites (12x12) ----------
+// '.' = transparent
+const SPR = {};
+
+// Left-side banana: stem at top-right, body curves down-left
+SPR.bananaL = [
+  '............',
+  '.........KK.',
+  '........KGGK',
+  '........KYGK',
+  '.......KYYYK',
+  '......KYYYK.',
+  '....KKYYYK..',
+  '..KKYYYYK...',
+  '.KYwYYYK....',
+  '.KYYYyK.....',
+  '.KKKKK......',
+  '............',
+];
+// Right-side banana: stem at top-left, body curves down-right (mirrored)
+SPR.bananaR = [
+  '............',
+  '.KK.........',
+  'KGGK........',
+  'KGYK........',
+  'KYYYK.......',
+  '.KYYYK......',
+  '..KYYYKK....',
+  '...KYYYYKK..',
+  '....KYwYYYK.',
+  '.....KyYYYK.',
+  '......KKKKK.',
+  '............',
+];
+SPR.star = [
+  '............',
+  '.....YY.....',
+  '....YYYY....',
+  '....YwwY....',
+  'YYYYwwYYYY..',
+  '.YYYwwYYYY..',
+  '..YYYYYYY...',
+  '..YYY.YYY...',
+  '.YYY...YYY..',
+  '.Y.......Y..',
+  '............',
+  '............',
+];
+SPR.bomb = [
+  '............',
+  '.......o....',
+  '......o.....',
+  '....KK.o....',
+  '..KKKKKK....',
+  '.KKKKwKKK...',
+  '.KKwKKKKK...',
+  '.KKKKKKKK...',
+  '.KKKKKKKK...',
+  '..KKKKKK....',
+  '....KK......',
+  '............',
+];
+
+const PALETTE = {
+  Y: '#ffd60a',
+  y: '#c79100',
+  G: '#3e8e41',
+  w: '#ffffff',
+  K: '#1a1a1a',
+  o: '#ff6b00',
+  R: '#ef4444',
+};
+
+function drawSprite(sprite, x, y) {
+  for (let row = 0; row < sprite.length; row++) {
+    const line = sprite[row];
+    for (let col = 0; col < line.length; col++) {
+      const c = line[col];
+      if (c !== '.' && PALETTE[c]) {
+        ctx.fillStyle = PALETTE[c];
+        ctx.fillRect(x + col, y + row, 1, 1);
+      }
+    }
+  }
+}
+
+// ---------- Game State ----------
+const player = [
+  { lane: 0, sprite: 'bananaL' },
+  { lane: 2, sprite: 'bananaR' },
+];
+let entities = [];
+let score = 0;
+let best = 0;
+try {
+  const stored = localStorage.getItem('twobananas_best');
+  if (stored) best = parseInt(stored, 10) || 0;
+} catch (e) {}
+let speed = 1.2;
+let spawnTimer = 0;
+let spawnInterval = 50;
+let running = false;
+let frame = 0;
+let bgOffset = 0;
+let flashTimer = 0;
+let shake = 0;
+
+document.getElementById('best').textContent = best;
+
+// ---------- Audio (tiny synth) ----------
+let audioCtx = null;
+function beep(freq = 600, dur = 0.06, type = 'square', vol = 0.05) {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = type;
+    o.frequency.value = freq;
+    g.gain.value = vol;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+    o.stop(audioCtx.currentTime + dur);
+  } catch (e) {}
+}
+
+// ---------- Game Loop ----------
+function startGame() {
+  document.getElementById('titleScreen').classList.add('hidden');
+  document.getElementById('gameOverScreen').classList.add('hidden');
+  player[0].lane = 0;
+  player[1].lane = 2;
+  entities = [];
+  score = 0;
+  speed = 1.2;
+  spawnTimer = 0;
+  spawnInterval = 50;
+  frame = 0;
+  flashTimer = 0;
+  shake = 0;
+  running = true;
+  document.getElementById('score').textContent = '0';
+  beep(880, 0.08);
+  setTimeout(() => beep(1100, 0.08), 80);
+  loop();
+}
+
+function showTitle() {
+  document.getElementById('gameOverScreen').classList.add('hidden');
+  document.getElementById('titleScreen').classList.remove('hidden');
+}
+
+function gameOver(reason) {
+  if (!running) return;
+  running = false;
+  beep(180, 0.15, 'sawtooth', 0.08);
+  setTimeout(() => beep(120, 0.2, 'sawtooth', 0.08), 120);
+  shake = 8;
+
+  if (score > best) {
+    best = score;
+    try { localStorage.setItem('twobananas_best', String(best)); } catch (e) {}
+    document.getElementById('best').textContent = best;
+  }
+
+  document.getElementById('finalScore').textContent = score;
+  document.getElementById('finalBest').textContent = best;
+
+  const rewardSection = document.getElementById('rewardSection');
+  const noRewardSection = document.getElementById('noRewardSection');
+  const promoCode = document.getElementById('promoCode');
+  const rewardText = document.getElementById('rewardText');
+
+  if (score >= 500) {
+    rewardSection.style.display = 'block';
+    noRewardSection.style.display = 'none';
+    rewardText.textContent = 'LEGENDARY · 20% OFF';
+    promoCode.textContent = 'BANANA20';
+  } else if (score >= 250) {
+    rewardSection.style.display = 'block';
+    noRewardSection.style.display = 'none';
+    rewardText.textContent = '15% OFF UNLOCKED';
+    promoCode.textContent = 'BANANA15';
+  } else if (score >= 100) {
+    rewardSection.style.display = 'block';
+    noRewardSection.style.display = 'none';
+    rewardText.textContent = '10% OFF UNLOCKED';
+    promoCode.textContent = 'BANANA10';
+  } else {
+    rewardSection.style.display = 'none';
+    noRewardSection.style.display = 'block';
+  }
+
+  setTimeout(() => {
+    document.getElementById('gameOverScreen').classList.remove('hidden');
+  }, 600);
+}
+
+function spawn() {
+  const lane = Math.floor(Math.random() * 4);
+  // probability mix: balanced so each lane gets enough stars
+  const r = Math.random();
+  let type;
+  if (r < 0.65) type = 'star';
+  else type = 'bomb';
+  // avoid spawning two in same lane too close
+  for (const e of entities) {
+    if (e.lane === lane && e.y < 24) return;
+  }
+  entities.push({ lane, y: -12, type });
+}
+
+function update() {
+  frame++;
+  bgOffset = (bgOffset + speed) % 16;
+
+  spawnTimer++;
+  if (spawnTimer >= spawnInterval) {
+    spawnTimer = 0;
+    spawn();
+    if (spawnInterval > 18) spawnInterval -= 0.4;
+  }
+  if (frame % 240 === 0) speed = Math.min(speed + 0.25, 4.2);
+
+  for (const e of entities) e.y += speed;
+
+  // collisions / catches
+  for (let i = entities.length - 1; i >= 0; i--) {
+    const e = entities[i];
+    const matchedPlayer = player.find(p => p.lane === e.lane);
+
+    // hitbox: when item overlaps player Y zone
+    if (matchedPlayer && e.y > PLAYER_Y - 10 && e.y < PLAYER_Y + 8) {
+      if (e.type === 'star') {
+        score += 1;
+        document.getElementById('score').textContent = score;
+        beep(1200 + (score % 12) * 60, 0.05, 'square', 0.05);
+        entities.splice(i, 1);
+        if (score === 100 || score === 250 || score === 500) {
+          flashTimer = 18;
+          beep(1600, 0.2, 'triangle', 0.08);
+        }
+        continue;
+      } else {
+        // bomb hit
+        gameOver('bomb');
+        return;
+      }
+    }
+
+    if (e.y > H + 4) {
+      if (e.type === 'star') {
+        gameOver('miss');
+        return;
+      } else {
+        entities.splice(i, 1);
+      }
+    }
+  }
+}
+
+function drawBackground() {
+  // two-tone road background
+  ctx.fillStyle = '#13132a';
+  ctx.fillRect(0, 0, 80, H);
+  ctx.fillStyle = '#0e0e22';
+  ctx.fillRect(80, 0, 80, H);
+
+  // dashed center
+  ctx.fillStyle = '#ffd60a';
+  for (let y = -16 + bgOffset; y < H; y += 16) {
+    ctx.fillRect(79, y, 2, 8);
+  }
+
+  // lane edge dots — moving
+  ctx.fillStyle = '#22223e';
+  for (let y = -16 + bgOffset; y < H; y += 16) {
+    ctx.fillRect(40, y, 1, 4);
+    ctx.fillRect(120, y, 1, 4);
+  }
+
+  // side borders
+  ctx.fillStyle = '#ff006e';
+  ctx.fillRect(0, 0, 1, H);
+  ctx.fillRect(W - 1, 0, 1, H);
+}
+
+function drawPlayer() {
+  for (const p of player) {
+    const x = LANE_X[p.lane] - 6;
+    const y = PLAYER_Y - 6;
+    // glow shadow
+    ctx.fillStyle = 'rgba(255, 214, 10, 0.25)';
+    ctx.fillRect(x + 2, y + 11, 8, 1);
+    drawSprite(SPR[p.sprite], x, y);
+  }
+}
+
+function drawEntities() {
+  for (const e of entities) {
+    const x = LANE_X[e.lane] - 6;
+    const y = Math.floor(e.y) - 6;
+    if (e.type === 'star') {
+      drawSprite(SPR.star, x, y);
+    } else {
+      drawSprite(SPR.bomb, x, y);
+    }
+  }
+}
+
+function draw() {
+  let sx = 0, sy = 0;
+  if (shake > 0) {
+    sx = Math.floor((Math.random() - 0.5) * shake);
+    sy = Math.floor((Math.random() - 0.5) * shake);
+    shake--;
+  }
+  ctx.save();
+  ctx.translate(sx, sy);
+
+  drawBackground();
+  drawEntities();
+  drawPlayer();
+
+  if (flashTimer > 0) {
+    ctx.fillStyle = `rgba(255, 214, 10, ${flashTimer / 30})`;
+    ctx.fillRect(0, 0, W, H);
+    flashTimer--;
+  }
+
+  ctx.restore();
+}
+
+function loop() {
+  if (!running) return;
+  update();
+  if (!running) { draw(); return; }
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// ---------- Controls ----------
+function switchLeft()  { player[0].lane = player[0].lane === 0 ? 1 : 0; beep(700, 0.03, 'square', 0.04); }
+function switchRight() { player[1].lane = player[1].lane === 2 ? 3 : 2; beep(800, 0.03, 'square', 0.04); }
+
+const surface = document.getElementById('gameContainer');
+
+surface.addEventListener('touchstart', (e) => {
+  if (!running) return;
+  e.preventDefault();
+  for (const t of e.changedTouches) {
+    const rect = surface.getBoundingClientRect();
+    const x = t.clientX - rect.left;
+    if (x < rect.width / 2) switchLeft();
+    else switchRight();
+  }
+}, { passive: false });
+
+surface.addEventListener('mousedown', (e) => {
+  if (!running) return;
+  if (e.target.tagName === 'BUTTON') return;
+  const rect = surface.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  if (x < rect.width / 2) switchLeft();
+  else switchRight();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (!running) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      if (!document.getElementById('titleScreen').classList.contains('hidden')) startGame();
+      else if (!document.getElementById('gameOverScreen').classList.contains('hidden')) startGame();
+    }
+    return;
+  }
+  if (e.key === 'a' || e.key === 'A' || e.key === 'd' || e.key === 'D') { switchLeft(); e.preventDefault(); }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { switchRight(); e.preventDefault(); }
+});
+
+// Initial paint
+drawBackground();
+drawPlayer();
+</script>
+</body>
+</html>
